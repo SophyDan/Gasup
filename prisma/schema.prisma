@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  STAFF
+}
+
+enum Fulfilment {
+  PICKUP
+  DELIVERY
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  PREPARING
+  READY
+  OUT_FOR_DELIVERY
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum AutomationStatus {
+  SENT
+  FAILED
+}
+
+enum AutomationType {
+  READY
+  REMINDER
+  PAID
+  OUT_FOR_DELIVERY
+  TEST
+  PASSWORD_RESET
+}
+
+model User {
+  id                String               @id @default(cuid())
+  name              String
+  email             String               @unique
+  phone             String
+  address           String               @default("")
+  passwordHash      String
+  role              Role                 @default(CUSTOMER)
+  manualRefillDays  Int?
+  passwordChangedAt DateTime?
+  createdAt         DateTime             @default(now())
+  orders            Order[]
+  automationLogs    AutomationLog[]
+  passwordResetTokens PasswordResetToken[]
+}
+
+model Cylinder {
+  id         String  @id @default(cuid())
+  sizeKg     Float   @unique
+  pricePerKg Float
+  active     Boolean @default(true)
+  orders     Order[]
+}
+
+model Order {
+  id                 String        @id @default(cuid())
+  customerId         String
+  customer           User          @relation(fields: [customerId], references: [id])
+  cylinderId         String
+  cylinder           Cylinder      @relation(fields: [cylinderId], references: [id])
+  quantity           Int
+  fulfilment         Fulfilment
+  deliveryAddress    String        @default("")
+  totalPrice         Float
+  status             OrderStatus   @default(PENDING)
+  createdAt          DateTime      @default(now())
+  readyAt            DateTime?
+  readyEmailSentAt   DateTime?
+  completedAt        DateTime?
+  payments           Payment[]
+  automationLogs     AutomationLog[]
+
+  @@index([customerId, createdAt])
+  @@index([status, createdAt])
+  @@map("Orders")
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  orderId   String
+  order     Order         @relation(fields: [orderId], references: [id])
+  reference String        @unique
+  amount    Int           // Paystack amount in kobo
+  status    PaymentStatus @default(PENDING)
+  provider  String        @default("PAYSTACK")
+  createdAt DateTime      @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+model AutomationLog {
+  id         String          @id @default(cuid())
+  type       AutomationType
+  orderId    String?
+  order      Order?          @relation(fields: [orderId], references: [id])
+  customerId String?
+  customer   User?           @relation(fields: [customerId], references: [id])
+  status     AutomationStatus
+  error      String?
+  createdAt  DateTime        @default(now())
+
+  @@index([type, status, createdAt])
+  @@index([customerId, type, createdAt])
+}
+
+model AuthThrottle {
+  email       String @id
+  attempts    Int
+  resetAt     DateTime
+  blockedUntil DateTime?
+}
+
+model PasswordResetToken {
+  tokenHash String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId, expiresAt])
+}
