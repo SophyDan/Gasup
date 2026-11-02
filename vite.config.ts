@@ -1,4 +1,4 @@
-﻿import { defineConfig } from 'vite'
+import { defineConfig } from 'vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
 
@@ -7,5 +7,5 @@ if (process.env.PAYSTACK_SECRET_KEY?.startsWith('sk_live_')) {
 }
 
 export default defineConfig({
-  plugins: [tanstackStart(), viteReact()],
+  plugins: [tanstackStart(), viteReact()]
 })
